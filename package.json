@@ -1,0 +1,32 @@
+{
+  "name": "joyce",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gen-types": "npx supabase gen types --lang=typescript --project-id iqqvuqlapgfsxmiqhahz --schema public > database.types.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@langchain/community": "^0.2.32",
+    "@langchain/core": "^0.2.31",
+    "@langchain/openai": "^0.2.10",
+    "@supabase/supabase-js": "^2.45.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "langchain": "^0.2.18",
+    "mammoth": "^1.8.0",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.5.4",
+    "@types/pdf-parse": "^1.1.4",
+    "typescript": "^5.5.4"
+  }
+}
