@@ -13,6 +13,7 @@
   "dependencies": {
     "@langchain/community": "^0.2.32",
     "@langchain/core": "^0.2.31",
+    "@langchain/ollama": "^0.0.4",
     "@langchain/openai": "^0.2.10",
     "@supabase/supabase-js": "^2.45.3",
     "dotenv": "^16.4.5",

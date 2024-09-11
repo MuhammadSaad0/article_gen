@@ -2,7 +2,7 @@ import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 import multer from "multer";
 import { createClient } from "@supabase/supabase-js";
-import { Database } from "../database.types";
+// import { Database } from "../database.types";
 import pdf from "pdf-parse";
 import mammoth from "mammoth";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
@@ -14,6 +14,8 @@ import {
   RunnableSequence,
 } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import path from "path";
+import {OllamaEmbeddings} from '@langchain/ollama'
 
 dotenv.config();
 
@@ -21,20 +23,18 @@ const app: Express = express();
 app.use(express.json());
 const port = process.env.PORT || 3000;
 const upload = multer({ dest: "uploads/" });
-const supabase = createClient<Database>(
+const supabase = createClient(
   process.env.SUPABASE_URL || "",
   process.env.SUPABASE_KEY || ""
 );
 
 const openAI = new OpenAI({
   apiKey: process.env.OAI_KEY,
-  temperature: 0.1,
+  temperature: 0.4,
   verbose: true,
-  cache: true,
-});
-
-app.get("/", (req: Request, res: Response) => {
-  res.send("Express Server");
+  cache: false,
+  maxTokens: -1,
+  modelName: 'gpt-4o'
 });
 
 app.post("/create_container2", upload.array("files"), async (req, res) => {
@@ -191,12 +191,15 @@ app.post("/create_container", upload.array("files"), async (req, res) => {
       });
 
       const texts: string[] = await Promise.all(textPromises);
+
       const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 3000,
+        chunkSize: 1000,
         chunkOverlap: 500,
       });
 
+
       const output = await splitter.createDocuments(texts);
+
       const container = await supabase
         .from("containers")
         .insert({})
@@ -205,6 +208,7 @@ app.post("/create_container", upload.array("files"), async (req, res) => {
         console.log(container);
         return res.status(500);
       }
+
       const rpc = await supabase.rpc("vector-db-init", {
         table_id: container.data[0]["id"].toString(),
       });
@@ -242,7 +246,8 @@ app.post("/generate_article", async (req, res) => {
   const prompt = req.body.prompt;
   const container = req.body.container;
 
-  const answer_template = `Generate a high quality article about a company based upon the information provided. Use an example article as the template for the new article. Be professional, journalistic and academic. Do not repeat information unnecessarily. Do not make up any information not present in the company information. Make sure the article is sensible and no incomplete points are made. Write only about the companies mentioned in the company information. Refuse to write about companies that are not present in the company information.
+  const answer_template = `Generate a high quality article about a company based upon the information provided. Use an example article as the template for the new article. TThe article should be of an enterprise nature. Do not make up any information not present in the company information. Make sure no incomplete points are made. Refuse to write about companies that are not present in the company information. Make sure to include specific data and stats where possible.
+    The article should have a title, an introduction that summarizes the articles content, there should be headings where possible and it should have a conluding paragraph.
     article template: {article_template}
     company information: {company_info}
     prompt: {prompt}
@@ -300,9 +305,30 @@ With the support of the alliance model, it is expected to usher in â€œsnowballâ€
   return res
     .json({
       msg: "Article generated",
-      data: resp,
+      data: {
+        article: resp,
+        rating: await rateArticle(resp)
+      },
     })
     .status(200);
+});
+
+async function rateArticle(article: string) {
+  const rate_template = `I have a program that generates Enterprise style articles about companies. They are usually about the companies finances, stock performance, franchisee conditions, profit, etc. I want you to rate the generated articles out of 10. Consider the generated content, the style, structure, tone and coherency of the articles. You have no other or previous context.  Article: {article}`
+  const rate_prompt = PromptTemplate.fromTemplate(rate_template)
+  const rateChain = rate_prompt.pipe(openAI).pipe(new StringOutputParser());
+  return await rateChain.invoke({article})
+}
+
+app.post('/rate_article', async(req, res) => {
+  return res.json({rating: await rateArticle(req.body.article)}).status(200)
+})
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Default route to serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, () => {
